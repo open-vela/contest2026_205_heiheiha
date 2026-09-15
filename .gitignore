@@ -1,0 +1,19 @@
+# Build directory (最重要！)
+build/
+
+# IDE settings
+.vscode/
+.idea/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# ESP-IDF specific
+sdkconfig.old
+dependencies.lock
+managed_components/
