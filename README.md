@@ -10,6 +10,8 @@
 
 演示视频：[`docs/demo/ai-care-demo.mp4`](docs/demo/ai-care-demo.mp4)。视频用于展示设备启动、手机控制台和本地看护流程，不代表真实医疗或跌倒识别准确率。
 
+项目规划书：[`docs/project-plan/基于 OpenVela 的端侧 AI 智慧看护终端.docx`](docs/project-plan/基于%20OpenVela%20的%20端侧%20AI%20智慧看护终端.docx)。
+
 ## 二、选题方向
 
 **AI 硬件产品创新**。
@@ -40,6 +42,8 @@
   - `README.md` — 固件使用说明、接口和边界。
   - `VALIDATION.md` — 已执行验证和仍需实机验收的项目。
 - `logs/` — AI Coding 日志归集目录。
+- `docs/demo/` — 作品演示视频。
+- `docs/project-plan/` — 作品规划书。
 - `firmware/eye_display/MODEL_INTEGRATION.md` — 后续真实模型接入边界。
 
 根目录的 `app/`、`board/`、`quickapp/` 是组委会仓库模板目录，本作品实际运行代码位于 `firmware/eye_display/`。
