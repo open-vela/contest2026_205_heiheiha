@@ -17,3 +17,10 @@ Thumbs.db
 sdkconfig.old
 dependencies.lock
 managed_components/
+
+# Local camera analysis artifacts
+camera_video_frame_*.bmp
+live_crop.bmp
+video_analysis_raw/
+video_inspection/
+/main/
