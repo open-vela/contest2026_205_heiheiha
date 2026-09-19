@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>智慧看护 · 本地控制台</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif;color:#152d3b;background:#eef3f5;font-size:16px}*{box-sizing:border-box}body{margin:0}header{background:#102333;color:white;padding:24px max(18px,calc((100vw - 1040px)/2))}h1{font-size:24px;margin:0 0 8px}h2{font-size:19px;margin:0 0 16px}h3{font-size:16px;margin:0 0 10px}p{line-height:1.6}header p{margin:0;color:#bdced8}.wrap{max-width:1076px;margin:auto;padding:18px}.card{background:white;border:1px solid #dce5e9;border-radius:14px;padding:20px;margin-bottom:16px;box-shadow:0 3px 12px #14303e05}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.grid .card{margin:0}.wide{grid-column:1/-1}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.muted,small{color:#526874;font-size:14px;line-height:1.6}.warning{background:#fff5dc;color:#745017;border:1px solid #f0d28c;border-radius:10px;padding:12px;line-height:1.6}.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}.metric{padding:14px;background:#f2f6f8;border-radius:10px}.metric strong{font-size:25px;display:block;margin-top:7px}.badge{display:inline-block;padding:6px 10px;border-radius:6px;background:#e6f7ee;color:#126143;font-weight:600}.bad{background:#ffebe9!important;color:#a92e25!important}.wait{background:#fff1cd!important;color:#88620b!important}label{display:block;font-size:14px;margin:12px 0 5px}input{width:100%;border:1px solid #b8c8d0;border-radius:7px;padding:11px;font:inherit;min-width:0}button{border:0;background:#087f70;color:white;padding:11px 16px;border-radius:8px;cursor:pointer;font:inherit;min-height:44px}button.secondary{background:#e8eff3;color:#294756}button.danger{background:#ae3c34}button:disabled{opacity:.45;cursor:not-allowed}button:hover:not(:disabled){filter:brightness(.93)}form .row{margin-top:16px}.settings{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}.notice{margin:12px 0;padding:12px;border-radius:8px;background:#e6f4f2;line-height:1.5}.hidden{display:none!important}#video{width:100%;max-height:400px;object-fit:contain;background:#102333;border-radius:10px;margin-top:14px}.scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;padding:11px 8px;border-bottom:1px solid #e2eaee;white-space:nowrap}footer{padding:20px;text-align:center;color:#536974;font-size:13px}#connection{float:right}#alarm{padding:16px;border-radius:10px;margin:14px 0;font-weight:600;line-height:1.7}code{overflow-wrap:anywhere}@media(max-width:680px){.grid{grid-template-columns:1fr}.metrics{gap:6px}.metric{padding:10px}.metric strong{font-size:22px}header{padding:20px 18px}#connection{float:none;margin:10px 0 0}.card{padding:16px}.wrap{padding:12px}}
+.grid>.card{min-width:0}.metric,.muted{overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<header><span id="connection" class="badge wait">尚未连接设备</span><h1>智慧看护 · 本地控制台</h1><p>ESP32-S3-EYE / ESP-IDF 原型 · 无需安装应用</p></header>
+<main class="wrap">
+<section class="card" id="loginPanel"><h2>连接设备</h2><p class="muted">手机先连接设备热点 AI-Care-xxxx；热点密码和设备访问密钥均在屏幕 SETTINGS → Network 页面。手机提示“无互联网”时选择保留连接。</p><form id="loginForm"><label for="deviceKey">设备访问密钥</label><input id="deviceKey" type="password" autocomplete="current-password" minlength="12" maxlength="12" required><div class="row"><button type="submit">连接控制台</button></div></form></section>
+<div id="message" class="notice hidden" role="status" aria-live="polite"></div>
+<section class="warning">这是本地演示系统，不是医疗或安全保障设备。Pose 是画面相对基线的变化分数，不是跌倒概率。加速度计、状态灯和 Bluetooth 5 LE 已接入；仍没有真实 AI 模型、蜂鸣器和云推送，视频及控制只限可信局域网。</section>
+<div id="controls" class="grid hidden" style="margin-top:16px">
+<section class="card wide"><div class="row" style="justify-content:space-between"><h2>设备状态</h2><span id="mode" class="badge wait">等待状态</span></div><div id="alarm" class="hidden" role="alert"></div><div class="metrics"><div class="metric">画面变化 Pose<strong id="pose">--</strong></div><div class="metric">帧间变化 Motion<strong id="motion">--</strong></div><div class="metric">已采样帧<strong id="samples">--</strong></div></div><p class="muted" id="detail">等待设备数据</p><div class="row"><button data-command="start">开始 / 重新校准</button><button class="secondary" data-command="stop">停止监测</button><button class="danger" data-command="cancel">取消报警</button><button class="secondary" data-command="test">测试屏幕报警</button><button class="secondary hidden" id="reminderAck" data-command="reminder_ack">确认关怀提醒</button></div><p class="muted">“测试屏幕报警”不需要做跌倒动作，测试事件会单独标记。取消后摄像头保持关闭，需主动重新开始。</p></section>
+<section class="card"><h2>主动视频共享</h2><p class="muted">先开始监测，再明确开启共享。最长 5 分钟；停止监测、触发报警或重启后自动关闭。最多一个观看端，不保存图像。</p><div class="row"><button id="shareOn">开启共享并查看</button><button id="shareOff" class="secondary">立即关闭共享</button></div><p id="videoState" class="muted">视频共享关闭</p><img id="video" class="hidden" alt="主动开启的设备实时画面"></section>
+<section class="card"><h2>网络与自检</h2><p id="network" class="muted">读取中</p><p id="health" class="muted">读取中</p><form id="wifiForm"><label for="ssid">家庭 Wi-Fi 名称（2.4 GHz）</label><input id="ssid" name="ssid" maxlength="32" autocomplete="off" required><label for="wifiPassword">Wi-Fi 密码（8–63 字节）</label><input id="wifiPassword" name="password" type="password" minlength="8" maxlength="63" autocomplete="new-password" required><div class="row"><button type="submit">保存并连接</button><button id="forgetWifi" type="button" class="secondary">忘记家庭网络</button></div></form><p class="muted">配置失败不会关闭设备热点。连上家庭网络后，状态栏会显示设备的局域网 IP。联网不等于云端推送。</p></section>
+<section class="card wide"><h2>检测参数与定时关怀</h2><form id="settingsForm"><div class="settings"><div><label for="poseSetting">候选阈值 Pose（10–100）</label><input id="poseSetting" name="pose" type="number" min="10" max="100" required></div><div><label for="recoverySetting">恢复阈值（低于候选阈值）</label><input id="recoverySetting" name="recovery" type="number" min="1" max="99" required></div><div><label for="motionSetting">允许的 Motion 上限（0–100）</label><input id="motionSetting" name="motion" type="number" min="0" max="100" required></div><div><label for="holdSetting">连续满足的采样数（2–20）</label><input id="holdSetting" name="hold" type="number" min="2" max="20" required></div><div><label for="delaySetting">屏幕报警确认时间（3–60 秒）</label><input id="delaySetting" name="delay" type="number" min="3" max="60" required></div><div><label for="reminderSetting">关怀提醒间隔（0 关闭，5–1440 分钟）</label><input id="reminderSetting" name="reminder" type="number" min="0" max="1440" required></div></div><div class="row"><button type="submit">保存参数</button><button id="defaults" type="button" class="secondary">填入默认参数</button></div></form><p class="muted">参数断电保留；检测阈值和确认时间在下一次开始监测时应用。定时关怀为屏幕/网页提醒，不是语音；保存新间隔后重新计时，重启后也从头计时。</p></section>
+<section class="card wide"><div class="row" style="justify-content:space-between"><h2>最近事件（最多 32 条）</h2><div class="row"><button id="refreshHistory" class="secondary">刷新</button><button id="exportHistory" class="secondary">导出 JSON</button><button id="clearHistory" class="secondary">清空记录</button></div></div><p class="muted">记录保存到设备闪存，不保存视频。连接控制台时同步手机时间；未同步的事件显示“本次启动运行时间”，不会伪造日期。页面保持打开时自动检查本地报警，关闭页面后不会接收系统推送。</p><div class="scroll"><table><thead><tr><th>编号 / 启动</th><th>时间</th><th>事件</th><th>Pose</th><th>Motion</th></tr></thead><tbody id="events"></tbody></table></div></section>
+</div>
+</main><footer>环境传感器、扬声器、真实 AI 模型与 OpenVela 移植尚未接入 · 本页面完全离线运行</footer>
+<script>
+'use strict';
+const element = id => document.getElementById(id);
+let deviceKey = '', loggedIn = false, pollTimer, wantVideo = false, streamRunning = false, latestStatus = null, historyData = [], lastAlert = -1, pollCount = 0, consecutiveFailures = 0;
+const eventNames = {boot:'设备启动',monitor_start:'开始监测',monitor_stop:'停止监测',candidate:'演示候选事件',alarm:'演示屏幕报警',cancel:'取消报警',test_start:'手动测试开始',test_alarm:'手动测试报警',test_cancel:'手动测试取消',reminder:'关怀提醒',reminder_ack:'确认关怀提醒',wifi_connected:'家庭网络已连接',wifi_lost:'家庭网络断开',settings:'参数已保存'};
+function message(text, error = false) { const box = element('message'); box.textContent = text; box.classList.remove('hidden'); box.classList.toggle('bad', error); }
+async function api(path, data) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    try {
+        const options = {headers:{'X-Care-Key':deviceKey}, cache:'no-store', signal:controller.signal};
+        if(data !== undefined) { options.method = 'POST'; options.headers['Content-Type'] = 'application/x-www-form-urlencoded'; options.body = new URLSearchParams(data); }
+        const response = await fetch(path, options);
+        const body = await response.json();
+        if(!response.ok) throw new Error(response.status === 401 ? '访问密钥不正确，请核对设备 Network 页面。' : body.error || '设备请求失败');
+        return body;
+    } finally { clearTimeout(timeout); }
+}
+function duration(seconds) { const hours = Math.floor(seconds / 3600); const minutes = Math.floor(seconds / 60) % 60; return [hours,minutes,seconds % 60].map(value=>String(value).padStart(2,'0')).join(':'); }
+function closeVideo() { element('video').removeAttribute('src'); element('video').classList.add('hidden'); streamRunning = false; }
+function showStatus(status) {
+    latestStatus = status; consecutiveFailures = 0;
+    element('connection').textContent = '设备在线 · '+duration(status.uptime); element('connection').className = 'badge';
+    element('pose').textContent = status.pose+'%'; element('motion').textContent = status.motion+'%'; element('samples').textContent = status.samples;
+    const mode = status.camera_error ? '摄像头初始化失败' : status.monitoring ? (status.calibrated ? '演示监测中' : '基线校准 '+status.base+'/12') : '监测已停止';
+    element('mode').textContent = mode; element('mode').className = 'badge '+(status.monitoring && status.calibrated ? '' : 'wait');
+    element('detail').textContent = '固件 '+status.firmware+' · 摄像头 '+(status.camera_ready?'已就绪':'未启动')+' · 当前为画面差分演示';
+    const alarm = element('alarm');
+    alarm.classList.toggle('hidden',status.alert === 0 && !status.reminder_due);
+    alarm.classList.toggle('bad',status.alert === 2);
+    alarm.classList.toggle('wait',status.alert !== 2);
+    alarm.textContent = status.alert === 2 ? (status.test_alert?'手动测试':'演示候选')+'：屏幕报警已激活。可按设备 PLAY 或点击“取消报警”。' : status.alert === 1 ? '屏幕报警倒计时 '+status.confirm_remaining+' 秒；这是演示确认流程。' : '关怀提醒已到，请查看身边情况并确认提醒。';
+    element('reminderAck').classList.toggle('hidden',!status.reminder_due);
+    element('network').textContent = '热点 '+status.ap_ssid+' / '+status.ap_ip+'；家庭 Wi-Fi：'+(status.wifi_connected ? status.wifi_ssid+' / '+status.station_ip : status.wifi_ssid ? '连接中或失败（原因码 '+status.wifi_reason+'）' : '未配置');
+    element('health').textContent = 'Wi-Fi 信道 '+(status.wifi_channel || '--')+' / RSSI '+(status.wifi_rssi || '--')+' dBm；剩余堆内存 '+Math.floor(status.free_heap/1024)+' KB；最低 '+Math.floor(status.min_heap/1024)+' KB；存储错误/丢弃记录 '+status.storage_errors+'。麦克风 '+(status.audio_connected?'已就绪，峰值 '+status.audio_level+'%（采样 '+status.audio_samples+'）':'未就绪')+'；加速度计 '+(status.imu_connected?'已就绪，XYZ='+status.imu_x_mg+'/'+status.imu_y_mg+'/'+status.imu_z_mg+' mg，冲击 '+status.imu_shock_mg+' mg':'未接入')+'；BLE '+(status.ble_ready?'广播中':'未启动')+'。';
+    element('shareOn').disabled = !status.monitoring || !status.video_available;
+    element('videoState').textContent = status.sharing ? '共享开启，剩余 '+status.share_remaining+' 秒（主动授权）' : '视频共享关闭，未传输图像';
+    if(status.sharing && wantVideo && !streamRunning) { element('video').src = 'http://'+location.hostname+':81/stream?key='+encodeURIComponent(deviceKey); element('video').classList.remove('hidden'); streamRunning = true; }
+    if(!status.sharing) closeVideo();
+    if(status.alert !== lastAlert) { lastAlert = status.alert; refreshHistory().catch(()=>{}); }
+}
+function disconnected(error) {
+    consecutiveFailures++;
+    if(consecutiveFailures < 3) return;
+    element('connection').textContent = '连接中断 · 数据可能过期'; element('connection').className = 'badge bad';
+    element('mode').textContent = '未取得实时状态'; element('mode').className = 'badge bad';
+    element('shareOn').disabled = true; closeVideo();
+    message('无法读取设备：'+error.message+' 请检查 Wi-Fi，页面会自动重试。',true);
+}
+async function poll() {
+    if(!loggedIn) return;
+    try { showStatus(await api('/api/status')); if(++pollCount % 10 === 0) await refreshHistory(); }
+    catch(error) { disconnected(error); }
+    finally { if(loggedIn) pollTimer = setTimeout(poll,1000); }
+}
+function fillSettings(values) { for(const [name,value] of Object.entries(values)) if(element('settingsForm').elements[name]) element('settingsForm').elements[name].value = value; }
+async function refreshHistory() {
+    const response = await api('/api/history'); historyData = response.events;
+    const body = element('events'); body.replaceChildren();
+    if(!historyData.length) { const row=document.createElement('tr'); const cell=document.createElement('td'); cell.colSpan=5; cell.textContent='暂无记录'; row.append(cell); body.append(row); }
+    for(const event of historyData) { const row = document.createElement('tr'); const values = [event.id+' / '+event.boot,event.time ? new Date(event.time*1000).toLocaleString() : '启动后 '+duration(event.uptime),eventNames[event.kind] || event.kind,event.pose+'%',event.motion+'%']; for(const value of values) { const cell=document.createElement('td'); cell.textContent=value; row.append(cell); } body.append(row); }
+}
+async function perform(action) {
+    if(action === 'test' && !confirm('只测试屏幕报警。摄像头预览会暂停，不会触发声音或云推送。继续？')) return;
+    await api('/api/command',{action}); message('命令已排队，等待设备执行。');
+    if(action === 'stop' || action === 'cancel' || action === 'share_off') { wantVideo=false; closeVideo(); }
+}
+function handle(promise) { promise.catch(error=>message(error.message,true)); }
+element('loginForm').addEventListener('submit',async event=>{
+    event.preventDefault(); clearTimeout(pollTimer); loggedIn=false; deviceKey=element('deviceKey').value.trim().toUpperCase();
+    try { const status=await api('/api/status'); const config=await api('/api/config'); await api('/api/time',{epoch:Math.floor(Date.now()/1000)}); loggedIn=true; element('loginPanel').classList.add('hidden'); element('controls').classList.remove('hidden'); fillSettings(config); showStatus(status); await refreshHistory().catch(()=>{}); message('已连接本地设备，时钟已与本机同步。'); pollTimer=setTimeout(poll,1000); }
+    catch(error) { message(error.message,true); }
+});
+document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>handle(perform(button.dataset.command))));
+element('settingsForm').addEventListener('submit',event=>{event.preventDefault();handle((async()=>{await api('/api/config',Object.fromEntries(new FormData(event.target)));message('参数已保存；检测参数在下一次开始监测时应用。');})());});
+element('defaults').addEventListener('click',()=>{fillSettings({pose:60,recovery:45,motion:35,hold:4,delay:5,reminder:0});message('已填入默认值，点击保存才会生效。');});
+element('wifiForm').addEventListener('submit',event=>{event.preventDefault();handle((async()=>{await api('/api/wifi',Object.fromEntries(new FormData(event.target)));element('wifiPassword').value='';message('网络配置已保存，设备将在稍后尝试连接，请看网络状态。');})());});
+element('forgetWifi').addEventListener('click',()=>{if(confirm('清除保存的家庭 Wi-Fi？设备热点会继续保留。'))handle(api('/api/wifi',{ssid:'',password:''}).then(()=>message('家庭网络配置已清除。')));});
+element('shareOn').addEventListener('click',()=>handle((async()=>{if(!confirm('允许此局域网中持访问密钥的设备查看摄像头，最多 5 分钟？'))return;wantVideo=true;await perform('share_on');})()));
+element('shareOff').addEventListener('click',()=>handle(perform('share_off')));
+element('video').addEventListener('error',()=>{closeVideo();wantVideo=false;message('视频未能连接或已结束；确认共享仍开启后可重试。',true);});
+element('refreshHistory').addEventListener('click',()=>handle(refreshHistory()));
+element('exportHistory').addEventListener('click',()=>handle((async()=>{await refreshHistory();const blob=new Blob([JSON.stringify({mode:'DEMO',events:historyData},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='care-history.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);})()));
+element('clearHistory').addEventListener('click',()=>{if(confirm('永久删除设备中的最近事件记录？'))handle(api('/api/history/clear',{confirm:'clear'}).then(refreshHistory).then(()=>message('历史记录已清空。')));});
+window.addEventListener('pagehide',()=>{loggedIn=false;clearTimeout(pollTimer);closeVideo();if(deviceKey)fetch('/api/command',{method:'POST',headers:{'X-Care-Key':deviceKey,'Content-Type':'application/x-www-form-urlencoded'},body:'action=share_off',keepalive:true}).catch(()=>{});});
+</script>
+</body></html>
